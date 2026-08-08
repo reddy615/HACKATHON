@@ -19,7 +19,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { useWishlist } from '../../hooks/useWishlist';
 import { formatCurrency } from '../../utils/formatters';
@@ -29,6 +29,7 @@ const categoryOptions = ['all', 'electronics', 'fashion', 'furniture', 'home', '
 
 const ProductsPage = () => {
   const { addToCart } = useCart();
+  const navigate = useNavigate();
   const { wishlist, toggleWishlist } = useWishlist();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
@@ -64,7 +65,18 @@ const ProductsPage = () => {
   };
 
   const handleAddToCart = async (productId) => {
-    await addToCart(productId, 1);
+    try {
+      await addToCart(productId, 1);
+    } catch (err) {
+      // If user is not authenticated, redirect to login (preserve existing ProductDetails behavior)
+      if (err && err.message && err.message.includes('Authentication')) {
+        navigate('/login', { state: { from: { pathname: '/products' } } });
+        return;
+      }
+      // otherwise log and ignore to avoid uncaught exceptions that break the UI
+      // eslint-disable-next-line no-console
+      console.error('Add to cart failed', err);
+    }
   };
 
   return (
