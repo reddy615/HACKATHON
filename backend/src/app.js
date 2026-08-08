@@ -47,7 +47,9 @@ app.get("/health", (req, res) => {
 
 // Root status endpoint - returns a simple API status for production root URL
 app.get("/", (req, res) => {
-  const environment = env.NODE_ENV || "production";
+  // Prefer the live process env first (covers hosting platforms),
+  // then fall back to the configured env value, then 'production'.
+  const environment = process.env.NODE_ENV || env.NODE_ENV || "production";
   res.status(200).json(
     apiSuccess("Cart Rescue API is running", {
       status: "ok",
