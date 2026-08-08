@@ -106,6 +106,23 @@ const CheckoutPage = () => {
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
       <Paper sx={{ p: 4 }}>
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={() => navigate(-1)}
+          sx={{
+            mb: 2,
+            borderRadius: 2,
+            textTransform: 'none',
+            px: 2,
+            py: 0.5,
+            alignSelf: 'flex-start',
+            '&:hover': { boxShadow: 1 },
+          }}
+        >
+          ← Back
+        </Button>
+
         <Typography variant="h4" gutterBottom>Checkout</Typography>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
