@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import { getOrCreateSessionId, trackSessionEvent } from '../../services/sessionTracking';
+import { formatCurrency } from '../../utils/formatters';
 
 const CartRecoveryWidget = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ const CartRecoveryWidget = () => {
   const [loading, setLoading] = useState(true);
   const [intervention, setIntervention] = useState(null);
   const [error, setError] = useState('');
+  const [aiUnavailable, setAiUnavailable] = useState(false);
   const [actionStatus, setActionStatus] = useState('');
 
   useEffect(() => {
@@ -21,10 +23,19 @@ const CartRecoveryWidget = () => {
         if (response.data?.success) {
           setIntervention(response.data.data.intervention);
         } else {
-          setError(response.data?.message || 'No recovery action available.');
+            setError(response.data?.message || 'No recovery action available.');
         }
       } catch (err) {
-        setError(err.response?.data?.message || 'Unable to fetch recovery recommendations.');
+        const msg = err.response?.data?.message;
+        // If no trained model is available, treat it as non-blocking: hide widget.
+        if (msg === 'No trained model available') {
+          setError('');
+          setIntervention(null);
+          setAiUnavailable(true);
+        } else {
+          // Do not expose raw backend errors to users.
+          setError('Unable to fetch AI recovery recommendations.');
+        }
       } finally {
         setLoading(false);
       }
@@ -80,6 +91,9 @@ const CartRecoveryWidget = () => {
     }
   }, [intervention?._id]);
 
+  // If AI is unavailable, hide the widget completely to keep the cart UI clean.
+  if (aiUnavailable) return null;
+
   if (loading) {
     return (
       <Card sx={{ mb: 3 }}>
@@ -128,7 +142,7 @@ const CartRecoveryWidget = () => {
         <Typography variant="body1" sx={{ mb: 1 }}>{intervention.message || intervention.reason}</Typography>
         {recommendation && (
           <Typography variant="body2" sx={{ mb: 1 }}>
-            Recommended item: {recommendation.name} for {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(recommendation.price)}.
+            Recommended item: {recommendation.name} for {formatCurrency(recommendation.price)}.
           </Typography>
         )}
         {hasOffer && (
