@@ -1,6 +1,7 @@
-import { AppBar, Box, Button, IconButton, Toolbar, Typography, useTheme } from '@mui/material';
-import { Brightness4, Brightness7, ShoppingCart } from '@mui/icons-material';
+import { AppBar, Avatar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography, useTheme, ListItemIcon } from '@mui/material';
+import { Brightness4, Brightness7, ShoppingCart, Person, Logout } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = ({ mode, setMode }) => {
@@ -12,6 +13,11 @@ const Navbar = ({ mode, setMode }) => {
     logout();
     navigate('/login');
   };
+
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+  const handleProfileClick = (e) => setAnchorEl(e.currentTarget);
+  const handleProfileClose = () => setAnchorEl(null);
 
   return (
     <AppBar
@@ -59,10 +65,27 @@ const Navbar = ({ mode, setMode }) => {
 
           {user ? (
             <>
-              <Button color="inherit">{user.name}</Button>
-              <Button variant="contained" onClick={handleLogout}>
-                Logout
+              <Button color="inherit" onClick={handleProfileClick} startIcon={<Avatar sx={{ width: 28, height: 28 }}>{(user.name || '').split(' ').map(n=>n[0]).slice(0,2).join('')}</Avatar>}>
+                {user.name}
               </Button>
+              <Menu anchorEl={anchorEl} open={open} onClose={handleProfileClose} onClick={handleProfileClose} PaperProps={{ sx: { mt: 1, minWidth: 220 } }}>
+                <Box sx={{ px: 2, py: 1.5 }}>
+                  <Typography variant="subtitle1">{user.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">{user.email}</Typography>
+                </Box>
+                <MenuItem component={Link} to="/profile">
+                  <ListItemIcon><Person fontSize="small" /></ListItemIcon>
+                  My Profile
+                </MenuItem>
+                <MenuItem component={Link} to="/cart">
+                  <ListItemIcon><ShoppingCart fontSize="small" /></ListItemIcon>
+                  My Cart
+                </MenuItem>
+                <MenuItem onClick={handleLogout}>
+                  <ListItemIcon><Logout fontSize="small" /></ListItemIcon>
+                  Logout
+                </MenuItem>
+              </Menu>
             </>
           ) : (
             <>

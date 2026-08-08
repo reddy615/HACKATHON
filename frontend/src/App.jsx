@@ -23,6 +23,7 @@ import PredictionsPage from './pages/admin/PredictionsPage';
 import NotificationsPage from './pages/admin/NotificationsPage';
 import AIDatasetDashboardPage from './pages/admin/AIDatasetDashboardPage';
 import InterventionDashboardPage from './pages/admin/InterventionDashboardPage';
+import ProfilePage from './pages/ProfilePage';
 
 const AppShell = () => {
   const location = useLocation();
@@ -116,6 +117,7 @@ const AppShell = () => {
               <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><DashboardPage /></ProtectedRoute>} />
               <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AnalyticsPage /></ProtectedRoute>} />
