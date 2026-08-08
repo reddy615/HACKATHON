@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Avatar, Box, Button, Card, CardContent, Container, Grid, Typography, Divider, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { Avatar, Box, Button, Card, CardContent, Container, Grid, Typography, Divider, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Tooltip } from '@mui/material';
+import FavoriteIcon from '@mui/icons-material/Favorite';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../hooks/useWishlist';
@@ -14,8 +16,9 @@ const initialsFromName = (name) => {
 const ProfilePage = () => {
   const { user } = useAuth();
   const { cart } = useCart();
-  const { wishlist } = useWishlist();
+  const { wishlist, loading: wishlistLoading } = useWishlist();
   const [editing, setEditing] = useState(false);
+  const navigate = useNavigate();
 
   const stats = useMemo(() => ({
     totalOrders: '--',
@@ -85,12 +88,54 @@ const ProfilePage = () => {
                 </Card>
               </Grid>
               <Grid item xs={12} sm={4}>
-                <Card>
-                  <CardContent>
-                    <Typography color="text.secondary">Wishlist Items</Typography>
-                    <Typography variant="h6">{stats.wishlistItems}</Typography>
-                  </CardContent>
-                </Card>
+                {/* Wishlist card: uses existing useWishlist() data. No new API or backend changes. */}
+                {(() => {
+                  const wishlistData = wishlist; // from hook
+                  const isArray = Array.isArray(wishlistData);
+                  const countDisplay = isArray && !wishlistLoading ? wishlistData.length : '--';
+
+                  // There is a dedicated /wishlist route added to App.jsx — make clickable.
+                  const isClickable = true;
+
+                  const cardSx = {
+                    borderRadius: 2,
+                    boxShadow: 1,
+                    transition: 'transform 180ms ease, box-shadow 180ms ease',
+                    '&:hover': isClickable ? { transform: 'translateY(-4px) scale(1.01)', boxShadow: 4 } : { boxShadow: 2 },
+                    cursor: isClickable ? 'pointer' : 'default',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    p: 2,
+                  };
+
+                  const inner = (
+                    <Card sx={cardSx} role={isClickable ? 'button' : undefined} aria-label="Wishlist Items">
+                      <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: 2, bgcolor: 'error.light' }}>
+                          <FavoriteIcon sx={{ color: 'error.main' }} />
+                        </Box>
+
+                        <Box sx={{ flex: 1 }}>
+                          <Typography color="text.secondary">Wishlist Items</Typography>
+                          <Typography variant="h6">{countDisplay}</Typography>
+                        </Box>
+
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Typography variant="body2" color="text.secondary">&nbsp;</Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  );
+
+                  return isClickable ? (
+                    <Tooltip title="View wishlist">
+                      <Box onClick={() => navigate('/wishlist')} sx={{ display: 'inline-block' }}>{inner}</Box>
+                    </Tooltip>
+                  ) : (
+                    inner
+                  );
+                })()}
               </Grid>
             </Grid>
           </Box>
