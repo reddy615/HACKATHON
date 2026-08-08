@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { TextField, Typography } from '@mui/material';
+import { TextField, Typography, Button } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import AuthFormCard from '../../components/common/AuthFormCard';
 
@@ -22,7 +22,19 @@ const LoginPage = () => {
   };
 
   return (
-    <AuthFormCard
+    <>
+      {location.state?.from && (
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={() => navigate(-1)}
+          sx={{ m: 2, borderRadius: 2, textTransform: 'none', px: 2 }}
+        >
+          ← Back
+        </Button>
+      )}
+
+      <AuthFormCard
       title="Welcome back"
       subtitle="Sign in to continue shopping and manage your cart."
       onSubmit={handleSubmit}
@@ -34,6 +46,7 @@ const LoginPage = () => {
         Don&apos;t have an account? <Link to="/register">Create one</Link>
       </Typography>
     </AuthFormCard>
+    </>
   );
 };
 
