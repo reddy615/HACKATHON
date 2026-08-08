@@ -45,6 +45,17 @@ app.get("/health", (req, res) => {
   res.status(200).json(apiSuccess("Server is healthy", { status: "ok" }));
 });
 
+// Root status endpoint - returns a simple API status for production root URL
+app.get("/", (req, res) => {
+  const environment = env.NODE_ENV || "production";
+  res.status(200).json(
+    apiSuccess("Cart Rescue API is running", {
+      status: "ok",
+      environment,
+    })
+  );
+});
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/products", require("./routes/productRoutes"));
