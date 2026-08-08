@@ -44,6 +44,11 @@ const InterventionDashboardPage = () => {
     return Object.entries(stats.riskLevelCounts).map(([risk, count]) => ({ risk, count }));
   }, [stats]);
 
+  const statusBreakdown = useMemo(() => {
+    if (!stats?.statusCounts) return [];
+    return Object.entries(stats.statusCounts).map(([status, count]) => ({ status, count }));
+  }, [stats]);
+
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ py: 6 }}>
@@ -61,18 +66,65 @@ const InterventionDashboardPage = () => {
       <Typography variant="h4" gutterBottom>Intervention Analytics</Typography>
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       {stats ? (
-        <Grid container spacing={3}>
-          {summary.map((item) => (
-            <Grid item xs={12} sm={6} md={4} key={item.label}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary">{item.label}</Typography>
-                  <Typography variant="h5" mt={1}>{item.value}</Typography>
-                </CardContent>
-              </Card>
+        <>
+          <Grid container spacing={3}>
+            {summary.map((item) => (
+              <Grid item xs={12} sm={6} md={4} key={item.label}>
+                <Card>
+                  <CardContent>
+                    <Typography color="text.secondary">{item.label}</Typography>
+                    <Typography variant="h5" mt={1}>{item.value}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+          <Box mt={4}>
+            <Typography variant="h5" gutterBottom>Status Breakdown</Typography>
+            <Grid container spacing={2}>
+              {statusBreakdown.map((item) => (
+                <Grid item xs={12} sm={6} md={4} key={item.status}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="text.secondary">{item.status}</Typography>
+                      <Typography variant="h6" mt={1}>{item.count}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
             </Grid>
-          ))}
-        </Grid>
+          </Box>
+
+          <Box mt={4}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Intervention Types</Typography>
+                    {typeBreakdown.map((item) => (
+                      <Typography key={item.type} sx={{ mb: 1 }}>
+                        {item.type}: {item.count}
+                      </Typography>
+                    ))}
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Risk Levels</Typography>
+                    {riskBreakdown.map((item) => (
+                      <Typography key={item.risk} sx={{ mb: 1 }}>
+                        {item.risk}: {item.count}
+                      </Typography>
+                    ))}
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </Box>
+        </>
       ) : (
         <Typography color="text.secondary">No intervention analytics available.</Typography>
       )}

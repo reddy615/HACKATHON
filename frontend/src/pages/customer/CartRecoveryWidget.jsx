@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, CardActions, CardContent, Chip, CircularProgress, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
-import { getOrCreateSessionId } from '../../services/sessionTracking';
+import { getOrCreateSessionId, trackSessionEvent } from '../../services/sessionTracking';
 
 const CartRecoveryWidget = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [intervention, setIntervention] = useState(null);
   const [error, setError] = useState('');
@@ -32,21 +34,30 @@ const CartRecoveryWidget = () => {
   }, []);
 
   const handleApplyRecommendation = async () => {
-    const sessionId = getOrCreateSessionId();
-    const recommendation = intervention?.payload?.productRecommendations?.products?.[0];
-    if (!recommendation) {
-      await api.put(`/ai/interventions/${intervention._id}/action/accept`, { sessionId });
-      navigate('/checkout');
+    if (!user) {
+      setActionStatus('Please sign in to apply your cart recovery recommendation.');
+      navigate('/login');
       return;
     }
 
+    const sessionId = getOrCreateSessionId();
+    const recommendation = intervention?.payload?.productRecommendations?.products?.[0];
+
     try {
       setActionStatus('Applying recommendation...');
-      await api.post('/carts/items', { productId: recommendation._id, quantity: 1 });
+      if (recommendation) {
+        await api.post('/carts/items', { productId: recommendation._id, quantity: 1 });
+        setActionStatus('Added recommended item to your cart. Continue to checkout to recover your order.');
+        await api.put(`/ai/interventions/${intervention._id}/action/accept`, { sessionId });
+        trackSessionEvent({ eventType: 'intervention_action', action: 'accept', interventionId: intervention._id, result: 'recommendation_applied' });
+        setIntervention(null);
+        navigate('/cart');
+        return;
+      }
+
       await api.put(`/ai/interventions/${intervention._id}/action/accept`, { sessionId });
-      setActionStatus('Added recommended item to your cart. Continue to checkout to recover your order.');
-      setIntervention(null);
-      navigate('/cart');
+      trackSessionEvent({ eventType: 'intervention_action', action: 'accept', interventionId: intervention._id, result: 'checkout_conversion' });
+      navigate('/checkout');
     } catch (err) {
       setActionStatus(err.response?.data?.message || 'Failed to apply recommendation.');
     }
@@ -57,6 +68,7 @@ const CartRecoveryWidget = () => {
     try {
       const sessionId = getOrCreateSessionId();
       await api.put(`/ai/interventions/${intervention._id}/action/show`, { sessionId });
+      trackSessionEvent({ eventType: 'intervention_action', action: 'show', interventionId: intervention._id });
     } catch (err) {
       // best-effort delivered tracking; ignore failures to avoid blocking UI
     }
@@ -86,6 +98,20 @@ const CartRecoveryWidget = () => {
     return <Alert severity="success">Your cart is stable. No recovery action is required right now.</Alert>;
   }
 
+  if (!user) {
+    return (
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6">Cart Recovery Recommendation</Typography>
+          <Typography sx={{ mt: 1, mb: 2 }}>Sign in to access cart recovery recommendations and apply them to your account.</Typography>
+          <Button variant="contained" onClick={() => navigate('/login')}>
+            Sign In
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const sessionId = getOrCreateSessionId();
   const recommendation = intervention.payload?.productRecommendations?.products?.[0];
   const hasOffer = intervention.interventionType === 'RECOVERY_OFFER';
@@ -99,7 +125,7 @@ const CartRecoveryWidget = () => {
           color={intervention.riskLevel === 'HIGH' ? 'error' : intervention.riskLevel === 'MEDIUM' ? 'warning' : 'success'}
           sx={{ mt: 1, mb: 2 }}
         />
-        <Typography variant="body1" sx={{ mb: 1 }}>{intervention.reason}</Typography>
+        <Typography variant="body1" sx={{ mb: 1 }}>{intervention.message || intervention.reason}</Typography>
         {recommendation && (
           <Typography variant="body2" sx={{ mb: 1 }}>
             Recommended item: {recommendation.name} for {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(recommendation.price)}.

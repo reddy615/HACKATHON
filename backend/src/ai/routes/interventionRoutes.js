@@ -20,6 +20,6 @@ router.get('/interventions/me', protect, getMyInterventions);
 router.get('/interventions/session/:sessionId', protect, getSessionInterventions);
 router.get('/interventions/:id', protect, getInterventionById);
 router.put('/interventions/:id/status', protect, updateInterventionStatus);
-router.put('/interventions/:id/action/:action', performInterventionAction);
+router.put('/interventions/:id/action/:action', protect, performInterventionAction);
 
 module.exports = router;

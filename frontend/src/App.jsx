@@ -87,16 +87,18 @@ const AppShell = () => {
       });
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) handlePageLeave();
+    };
+
     document.addEventListener('click', handleClick);
     window.addEventListener('beforeunload', handlePageLeave);
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) handlePageLeave();
-    });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       document.removeEventListener('click', handleClick);
       window.removeEventListener('beforeunload', handlePageLeave);
-      document.removeEventListener('visibilitychange', handlePageLeave);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [location.pathname]);
 

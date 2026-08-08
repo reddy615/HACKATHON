@@ -86,11 +86,14 @@ const predictFromFeatures = async ({ features = {}, modelVersion, datasetVersion
   const confidence = probability !== null ? Math.min(99, Math.max(50, Math.round(probability * 100))) : null;
   const riskLevel = probability !== null ? buildRiskLevel(probability) : 'UNKNOWN';
 
+  const resolvedDatasetVersion = datasetVersion || latestModel?.datasetVersion || 'unknown';
+  const resolvedModelVersion = modelVersion || latestModel?.version || 'unknown';
+
   const historyEntry = await PredictionHistory.create({
     sessionId: sessionId || 'unknown',
     userId,
-    modelVersion: latestModel.version,
-    datasetVersion: datasetVersion || latestModel.datasetVersion,
+    modelVersion: resolvedModelVersion,
+    datasetVersion: resolvedDatasetVersion,
     prediction,
     probability: probability !== null ? roundMetric(probability) : null,
     confidence,

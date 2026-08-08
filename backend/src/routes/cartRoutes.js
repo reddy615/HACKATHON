@@ -1,7 +1,7 @@
 const express = require("express");
 const { getMyCart, addItemToCart, updateCartItem, removeCartItem, clearCart } = require("../controllers/cartController");
 const { protect } = require("../middleware");
-const { validateCartItem, validateMongoId } = require("../validators/common");
+const { validateCartItem, validateCartItemUpdate, validateMongoId } = require("../validators/common");
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ const router = express.Router();
  */
 router.get("/", protect, getMyCart);
 router.post("/items", protect, validateCartItem, addItemToCart);
-router.put("/items/:itemId", protect, validateMongoId("itemId"), updateCartItem);
+router.put("/items/:itemId", protect, validateMongoId("itemId"), validateCartItemUpdate, updateCartItem);
 router.delete("/items/:itemId", protect, validateMongoId("itemId"), removeCartItem);
 router.delete("/clear", protect, clearCart);
 

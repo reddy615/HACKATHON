@@ -7,6 +7,6 @@ module.exports = {
     MONGODB_URI: process.env.MONGODB_URI || "",
     JWT_SECRET: process.env.JWT_SECRET || "cartrescue-secret",
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
-    CORS_ORIGIN: process.env.CORS_ORIGIN || "http://localhost:3000",
+    CORS_ORIGIN: process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:5173",
   },
 };

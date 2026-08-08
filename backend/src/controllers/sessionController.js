@@ -41,6 +41,12 @@ const sanitizePayload = (payload = {}) => {
 const ensureSession = async (sessionId, req) => {
   let session = await Session.findOne({ sessionId });
 
+  if (session && session.user && req.user && String(session.user) !== String(req.user._id) && req.user.role !== 'admin') {
+    const error = new Error('Session access forbidden');
+    error.statusCode = 403;
+    throw error;
+  }
+
   if (!session) {
     const userAgent = req.body.userAgent || req.headers["user-agent"] || "";
     session = new Session({
@@ -70,6 +76,14 @@ const ensureSession = async (sessionId, req) => {
   session.status = "active";
   if (!session.startedAt) session.startedAt = new Date();
 
+  // Ensure arrays exist to avoid runtime push errors
+  session.events = session.events || [];
+  session.pageViews = session.pageViews || [];
+  session.clickEvents = session.clickEvents || [];
+  session.cartUpdates = session.cartUpdates || [];
+  session.checkoutSteps = session.checkoutSteps || [];
+  session.paymentAttempts = session.paymentAttempts || [];
+
   return session;
 };
 
@@ -98,17 +112,6 @@ const appendSessionEvent = (session, payload = {}) => {
       exitedAt: normalized.exitedAt ? new Date(normalized.exitedAt) : null,
       durationMs: Number(normalized.durationMs || 0),
       referrer: normalized.referrer || "",
-    });
-  }
-
-  if (eventType === "product_view" || normalized.productView) {
-    session.events.push({
-      type: "product_view",
-      eventName: normalized.eventName || "product_view",
-      page: normalized.page || "",
-      productId: normalized.productId || undefined,
-      metadata: { ...normalized, eventType: "product_view" },
-      createdAt: new Date(),
     });
   }
 

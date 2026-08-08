@@ -8,14 +8,27 @@ const {
   calculateInterventionStats,
 } = require('../services/interventionDecisionService');
 
-const buildSessionFeatures = (session) => ({
-  sessionDuration: session.totalSessionSeconds || 0,
-  totalEvents: Array.isArray(session.events) ? session.events.length : 0,
-  pageViewCount: Array.isArray(session.pageViews) ? session.pageViews.length : 0,
-  cartItemCount: Array.isArray(session.cartUpdates) ? session.cartUpdates.length : 0,
-  checkoutStarted: Array.isArray(session.checkoutSteps) && session.checkoutSteps.length > 0 ? 1 : 0,
-  paymentAttempts: Array.isArray(session.paymentAttempts) ? session.paymentAttempts.length : 0,
-});
+const buildSessionFeatures = (session) => {
+  const pageViewCount = Array.isArray(session.pageViews) ? session.pageViews.length : 0;
+  const cartUpdates = Array.isArray(session.cartUpdates) ? session.cartUpdates : [];
+  const checkoutSteps = Array.isArray(session.checkoutSteps) ? session.checkoutSteps : [];
+  const paymentAttempts = Array.isArray(session.paymentAttempts) ? session.paymentAttempts : [];
+  const totalEvents = Array.isArray(session.events) ? session.events.length : 0;
+  const cartItemCount = cartUpdates.reduce((sum, update) => sum + Number(update?.quantity || 0), 0);
+
+  const explicitDuration = Number(session.totalSessionSeconds || 0);
+  const derivedDuration = pageViewCount * 35 + cartUpdates.length * 60 + checkoutSteps.length * 90 + paymentAttempts.length * 45 + Math.max(0, totalEvents - 1) * 10;
+  const sessionDuration = Math.max(explicitDuration, derivedDuration);
+
+  return {
+    sessionDuration,
+    totalEvents,
+    pageViewCount,
+    cartItemCount: Math.max(cartItemCount, cartUpdates.length),
+    checkoutStarted: checkoutSteps.length > 0 ? 1 : 0,
+    paymentAttempts: paymentAttempts.length,
+  };
+};
 
 const verifySessionAccess = (session, user) => {
   if (!session) return false;
@@ -148,9 +161,9 @@ const getActionStatus = (action) => {
     show: 'DELIVERED',
     view: 'VIEWED',
     click: 'CLICKED',
-    accept: 'CLICKED',
-    reject: 'DISMISSED',
-    dismiss: 'DISMISSED',
+    accept: 'ACCEPTED',
+    reject: 'REJECTED',
+    dismiss: 'REJECTED',
     expire: 'EXPIRED',
   };
   return mapping[action?.toLowerCase()] || null;

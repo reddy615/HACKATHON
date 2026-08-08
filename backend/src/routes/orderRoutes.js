@@ -1,7 +1,7 @@
 const express = require("express");
 const { createOrder, getMyOrders, getOrderById, updateOrderStatus } = require("../controllers/orderController");
 const { protect, authorize } = require("../middleware");
-const { validateMongoId, validateOrder } = require("../validators/common");
+const { validateMongoId, validateOrder, validateOrderStatus } = require("../validators/common");
 
 const router = express.Router();
 
@@ -17,6 +17,6 @@ const router = express.Router();
 router.post("/", protect, validateOrder, createOrder);
 router.get("/me", protect, getMyOrders);
 router.get("/:id", protect, validateMongoId("id"), getOrderById);
-router.put("/:id/status", protect, authorize("admin"), validateMongoId("id"), updateOrderStatus);
+router.put("/:id/status", protect, authorize("admin"), validateMongoId("id"), validateOrderStatus, updateOrderStatus);
 
 module.exports = router;

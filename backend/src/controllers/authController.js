@@ -9,7 +9,7 @@ const signToken = (user) => jwt.sign({ id: user._id, role: user.role }, env.JWT_
 
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, role, phone } = req.body;
+    const { name, email, password, phone } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json(apiError("Name, email, and password are required", 400));
     }
@@ -20,7 +20,7 @@ exports.register = async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, email, password: hashedPassword, role: role || "customer", phone: phone || "" });
+    const user = await User.create({ name, email, password: hashedPassword, role: "customer", phone: phone || "" });
 
     const token = signToken(user);
     logger.info(`User registered: ${user.email}`);

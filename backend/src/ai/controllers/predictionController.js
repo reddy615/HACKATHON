@@ -151,7 +151,7 @@ exports.getEvaluation = async (req, res, next) => {
 
 exports.getPredictionHistory = async (req, res, next) => {
   try {
-    const query = req.user?.role === "admin" ? {} : { userId: req.user?._id };
+    const query = req.user?.role === "admin" ? {} : { $or: [{ userId: req.user?._id }, { userId: req.user?._id?.toString?.() }] };
     const history = await PredictionHistory.find(query).sort({ timestamp: -1 }).limit(50).lean();
     res.status(200).json(apiSuccess("Prediction history fetched", { history }));
   } catch (error) {

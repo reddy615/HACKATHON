@@ -31,7 +31,7 @@ const normalizedConfig = {
 };
 
 const INTERVENTION_TYPES = {
-  NONE: 'NONE',
+  NONE: null,
   CART_REMINDER: 'CART_REMINDER',
   CHECKOUT_ASSISTANCE: 'CHECKOUT_ASSISTANCE',
   PRODUCT_RECOMMENDATION: 'PRODUCT_RECOMMENDATION',
@@ -41,13 +41,13 @@ const INTERVENTION_TYPES = {
 };
 
 const STATUS_TRANSITIONS = {
-  PENDING: ['TRIGGERED', 'FAILED', 'EXPIRED'],
   TRIGGERED: ['DELIVERED', 'FAILED', 'EXPIRED'],
-  DELIVERED: ['VIEWED', 'CLICKED', 'DISMISSED', 'EXPIRED'],
-  VIEWED: ['CLICKED', 'CONVERTED', 'DISMISSED', 'EXPIRED'],
-  CLICKED: ['CONVERTED', 'DISMISSED', 'EXPIRED'],
+  DELIVERED: ['VIEWED', 'CLICKED', 'ACCEPTED', 'REJECTED', 'EXPIRED'],
+  VIEWED: ['CLICKED', 'ACCEPTED', 'CONVERTED', 'REJECTED', 'EXPIRED'],
+  CLICKED: ['ACCEPTED', 'CONVERTED', 'REJECTED', 'EXPIRED'],
+  ACCEPTED: ['CONVERTED', 'REJECTED', 'EXPIRED'],
+  REJECTED: [],
   CONVERTED: [],
-  DISMISSED: [],
   EXPIRED: [],
   FAILED: [],
 };
@@ -60,7 +60,7 @@ const normalizeRisk = (riskLevel) => {
 
 const normalizeStatus = (status) => {
   const normalized = String(status || '').toUpperCase();
-  return Object.keys(STATUS_TRANSITIONS).includes(normalized) ? normalized : 'PENDING';
+  return Object.keys(STATUS_TRANSITIONS).includes(normalized) ? normalized : null;
 };
 
 const getInterventionPriority = (riskLevel) => {
@@ -126,7 +126,7 @@ const getSessionActivity = (session) => ({
 const getCustomerHistory = async (userId) => {
   if (!userId) return { totalOrders: 0, abandonments: 0, recoveries: 0, couponRedemptions: 0 };
   const [ordersCount, recoveries] = await Promise.all([
-    Order.countDocuments({ userId }),
+    Order.countDocuments({ user: userId }),
     Intervention.countDocuments({ userId, outcome: 'RECOVERED' }),
   ]);
   return {
@@ -137,7 +137,7 @@ const getCustomerHistory = async (userId) => {
   };
 };
 
-const ACTIVE_STATUSES = ['PENDING', 'TRIGGERED', 'DELIVERED', 'VIEWED', 'CLICKED'];
+const ACTIVE_STATUSES = ['TRIGGERED', 'DELIVERED', 'VIEWED', 'CLICKED', 'ACCEPTED'];
 
 const findActiveIntervention = async ({ sessionId, userId }) => {
   const baseQuery = { status: { $in: ACTIVE_STATUSES } };
@@ -172,7 +172,7 @@ const findRecentInterventions = async ({ sessionId, userId }) => {
 const shouldCreateIntervention = ({ probability, confidence, riskLevel, recentInterventions, sessionId, userId }) => {
   const now = new Date();
   const validRecent = recentInterventions.filter((intervention) => {
-    if (intervention.status === 'CONVERTED' || intervention.status === 'FAILED' || intervention.status === 'DISMISSED' || intervention.status === 'EXPIRED') {
+    if (['CONVERTED', 'FAILED', 'REJECTED', 'EXPIRED'].includes(intervention.status)) {
       return false;
     }
     const ageSeconds = (now - new Date(intervention.createdAt)) / 1000;
@@ -187,7 +187,7 @@ const shouldCreateIntervention = ({ probability, confidence, riskLevel, recentIn
   if (confidence < normalizedConfig.minConfidence) return { allow: false, reason: 'confidence below threshold' };
   if (probability < normalizedConfig.minProbability) return { allow: false, reason: 'abandonment probability below threshold' };
   if (riskLevel === 'LOW') return { allow: false, reason: 'low risk does not warrant intervention' };
-  if (validRecent.some((intervention) => intervention.status === 'PENDING' || intervention.status === 'TRIGGERED' || intervention.status === 'DELIVERED' || intervention.status === 'VIEWED' || intervention.status === 'CLICKED')) {
+  if (validRecent.some((intervention) => ['TRIGGERED', 'DELIVERED', 'VIEWED', 'CLICKED', 'ACCEPTED'].includes(intervention.status))) {
     return { allow: false, reason: 'recent active intervention still in progress' };
   }
 
@@ -204,7 +204,7 @@ const getProductRecommendations = async ({ session, cart, userId }) => {
   ));
 
   const cartProductIds = Array.from(new Set((cart?.items || []).map((item) => String(item.product))));
-  const wishlistIds = userId ? await Product.find({}).where('_id').in([]).lean().then(() => []) : []; // placeholder safe fallback
+  const wishlistIds = [];
 
   const excludedIds = new Set([...viewedProductIds, ...cartProductIds, ...wishlistIds]);
   const categoryCandidates = Array.from(new Set(
@@ -226,9 +226,40 @@ const getProductRecommendations = async ({ session, cart, userId }) => {
   };
 };
 
+const getInterventionMessage = ({ interventionType, riskLevel, cartValue, paymentStatus, productRecommendations }) => {
+  if (interventionType === INTERVENTION_TYPES.CHECKOUT_ASSISTANCE) {
+    return paymentStatus === 'failed'
+      ? 'It looks like your checkout failed. Let us help you complete your purchase.'
+      : 'Need help at checkout? We can assist with payment and order details.';
+  }
+
+  if (interventionType === INTERVENTION_TYPES.RECOVERY_OFFER) {
+    return `Your cart has a strong recovery signal. Enjoy a personalized offer to get back on track.`;
+  }
+
+  if (interventionType === INTERVENTION_TYPES.PRODUCT_RECOMMENDATION) {
+    return productRecommendations?.products?.length
+      ? 'We found a product recommendation that could help complete your cart.'
+      : 'We have a product suggestion to improve your order.';
+  }
+
+  if (interventionType === INTERVENTION_TYPES.PERSONALIZED_MESSAGE) {
+    return 'We noticed a high chance of abandonment. Here is a personalized suggestion to help you continue.';
+  }
+
+  return 'Our AI detected a high recovery opportunity for your cart.';
+};
+
 const createIntervention = async ({ prediction, sessionId, userId, cart }) => {
   const session = await Session.findOne({ sessionId }).lean();
   const cartDoc = cart || (userId ? await Cart.findOne({ user: userId, status: 'active' }).lean() : null);
+  if (!prediction || typeof prediction !== 'object') {
+    return {
+      shouldIntervene: false,
+      reason: 'Prediction payload is invalid.',
+      decision: { allow: false, reason: 'invalid prediction payload' },
+    };
+  }
   const cartValue = getSessionCartValue(cartDoc);
   const paymentStatus = getPaymentStatus(session, cartDoc);
   const deliveryEstimate = getDeliveryEstimate(session);
@@ -255,7 +286,7 @@ const createIntervention = async ({ prediction, sessionId, userId, cart }) => {
     productRecommendations,
   });
 
-  if (interventionType === INTERVENTION_TYPES.NONE) {
+  if (!interventionType) {
     return {
       shouldIntervene: false,
       reason: 'No appropriate intervention type selected for current risk and state.',
@@ -264,6 +295,8 @@ const createIntervention = async ({ prediction, sessionId, userId, cart }) => {
   }
 
   const predictionId = prediction._id || prediction.historyId || null;
+  const message = getInterventionMessage({ interventionType, riskLevel, cartValue, paymentStatus, productRecommendations });
+  const now = new Date();
   const intervention = await Intervention.create({
     sessionId,
     userId,
@@ -274,7 +307,12 @@ const createIntervention = async ({ prediction, sessionId, userId, cart }) => {
     abandonmentProbability: prediction.probability,
     confidence: prediction.confidence,
     priority,
-    reason: `Auto-generated intervention for ${riskLevel} risk and probability ${prediction.probability.toFixed(2)}.`,
+    thresholds: {
+      minConfidence: normalizedConfig.minConfidence,
+      minProbability: normalizedConfig.minProbability,
+    },
+    message,
+    reason: `Auto-generated ${interventionType} intervention for ${riskLevel} risk and probability ${prediction.probability.toFixed(2)}.`,
     status: 'TRIGGERED',
     payload: {
       productRecommendations,
@@ -284,6 +322,9 @@ const createIntervention = async ({ prediction, sessionId, userId, cart }) => {
       sessionActivity,
     },
     cartId: cartDoc?._id,
+    deliveryChannel: 'internal',
+    attributionSource: `AI_${interventionType}`,
+    cooldownExpiresAt: new Date(now.getTime() + normalizedConfig.cooldownSeconds * 1000),
   });
 
   return {
@@ -297,8 +338,9 @@ const triggerIntervention = async (interventionId) => {
   const intervention = await Intervention.findById(interventionId);
   if (!intervention) throw new Error('Intervention not found');
 
-  if (!STATUS_TRANSITIONS[intervention.status].includes('TRIGGERED')) {
-    throw new Error(`Invalid transition from ${intervention.status} to TRIGGERED`);
+  // Allow triggering unless the intervention is in a terminal state
+  if (['CONVERTED', 'REJECTED', 'EXPIRED', 'FAILED'].includes(intervention.status)) {
+    throw new Error(`Cannot trigger intervention from terminal status ${intervention.status}`);
   }
 
   intervention.status = 'TRIGGERED';
@@ -308,6 +350,10 @@ const triggerIntervention = async (interventionId) => {
 
 const updateInterventionStatus = async (interventionId, nextStatus) => {
   const status = normalizeStatus(nextStatus);
+  if (!status) {
+    throw new Error(`Unsupported intervention status: ${nextStatus}`);
+  }
+
   const intervention = await Intervention.findById(interventionId);
   if (!intervention) throw new Error('Intervention not found');
 
@@ -317,20 +363,23 @@ const updateInterventionStatus = async (interventionId, nextStatus) => {
 
   intervention.status = status;
   if (status === 'TRIGGERED') {
-    intervention.deliveredAt = intervention.deliveredAt || new Date();
+    intervention.triggeredAt = intervention.triggeredAt || new Date();
   }
   if (status === 'DELIVERED') {
-    intervention.deliveredAt = intervention.deliveredAt || new Date();
+    intervention.shownAt = intervention.shownAt || new Date();
   }
-  if (status === 'VIEWED' || status === 'CLICKED') {
+  if (status === 'VIEWED' || status === 'CLICKED' || status === 'ACCEPTED') {
     intervention.interactedAt = new Date();
   }
+  if (status === 'ACCEPTED') {
+    intervention.acceptedAt = intervention.acceptedAt || new Date();
+  }
   if (status === 'CONVERTED') {
-    intervention.convertedAt = new Date();
+    intervention.convertedAt = intervention.convertedAt || new Date();
     intervention.outcome = 'RECOVERED';
   }
-  if (status === 'DISMISSED') {
-    intervention.expiredAt = new Date();
+  if (status === 'REJECTED') {
+    intervention.rejectedAt = intervention.rejectedAt || new Date();
     intervention.outcome = 'DISMISSED';
   }
   if (status === 'EXPIRED') {
@@ -386,8 +435,10 @@ const markInterventionRecovered = async (interventionId, metadata = {}) => {
   if (!intervention) return null;
   intervention.status = 'CONVERTED';
   intervention.outcome = 'RECOVERED';
-  intervention.convertedAt = new Date();
+  intervention.convertedAt = intervention.convertedAt || new Date();
   intervention.recoveryMetadata = { ...intervention.recoveryMetadata, ...metadata };
+  if (metadata.orderId) intervention.orderId = metadata.orderId;
+  if (metadata.totalAmount != null) intervention.conversionValue = metadata.totalAmount;
   await intervention.save();
   return intervention;
 };
