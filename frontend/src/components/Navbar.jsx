@@ -29,8 +29,16 @@ const Navbar = ({ mode, setMode }) => {
             CartRescue AI
           </Typography>
 
+          <Button component={Link} to="/" color="inherit">
+            Home
+          </Button>
+
           <Button component={Link} to="/products" color="inherit">
             Products
+          </Button>
+
+          <Button color="inherit" onClick={() => navigate(-1)}>
+            ← Back
           </Button>
 
           {user?.role === 'admin' && (

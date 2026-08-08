@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Card, CardContent, CircularProgress, Container, Grid, Typography } from '@mui/material';
+import { formatCurrency } from '../../utils/formatters';
 import api from '../../api/axios';
 
 const InterventionDashboardPage = () => {
@@ -29,8 +30,8 @@ const InterventionDashboardPage = () => {
       { label: 'Recovered', value: stats.recoveredInterventions },
       { label: 'Conversion Rate', value: `${(stats.conversionRate * 100).toFixed(1)}%` },
       { label: 'Recovery Rate', value: `${(stats.recoveryRate * 100).toFixed(1)}%` },
-      { label: 'Avg Cart Value', value: `$${stats.averageCartValue.toFixed(2)}` },
-      { label: 'Recovered Cart Value', value: `$${stats.recoveredCartValue.toFixed(2)}` },
+      { label: 'Avg Cart Value', value: formatCurrency(stats.averageCartValue) },
+      { label: 'Recovered Cart Value', value: formatCurrency(stats.recoveredCartValue) },
     ];
   }, [stats]);
 
