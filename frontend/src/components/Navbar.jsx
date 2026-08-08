@@ -1,12 +1,14 @@
-import { AppBar, Avatar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography, useTheme, ListItemIcon } from '@mui/material';
-import { Brightness4, Brightness7, ShoppingCart, Person, Logout } from '@mui/icons-material';
+import { AppBar, Avatar, Badge, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography, useTheme, ListItemIcon } from '@mui/material';
+import { Brightness4, Brightness7, ShoppingCart, Person, Favorite as FavoriteIcon, Logout } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useWishlist } from '../hooks/useWishlist';
 
 const Navbar = ({ mode, setMode }) => {
   const theme = useTheme();
   const { user, logout } = useAuth();
+  const { wishlist, loading: wishlistLoading } = useWishlist();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -59,6 +61,14 @@ const Navbar = ({ mode, setMode }) => {
             {mode === 'light' ? <Brightness4 /> : <Brightness7 />}
           </IconButton>
 
+          <Button component={Link} to="/wishlist" color="inherit" startIcon={
+            <Badge badgeContent={(!wishlistLoading && Array.isArray(wishlist)) ? wishlist.length : 0} color="error" overlap="circular">
+              <FavoriteIcon />
+            </Badge>
+          }>
+            Wishlist
+          </Button>
+
           <Button component={Link} to="/cart" color="inherit" startIcon={<ShoppingCart />}>
             Cart
           </Button>
@@ -76,6 +86,10 @@ const Navbar = ({ mode, setMode }) => {
                 <MenuItem component={Link} to="/profile">
                   <ListItemIcon><Person fontSize="small" /></ListItemIcon>
                   My Profile
+                </MenuItem>
+                <MenuItem component={Link} to="/wishlist">
+                  <ListItemIcon><FavoriteIcon fontSize="small" /></ListItemIcon>
+                  My Wishlist
                 </MenuItem>
                 <MenuItem component={Link} to="/cart">
                   <ListItemIcon><ShoppingCart fontSize="small" /></ListItemIcon>
