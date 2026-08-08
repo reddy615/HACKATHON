@@ -28,13 +28,45 @@ async function seed() {
 
   // Upsert a small set of base products (use $setOnInsert to avoid modifying existing records)
   const baseProducts = [
-    { name: "Smart Headphones", description: "Noise cancelling over-ear headphones", price: 129.99, stock: 25, category: "electronics" },
-    { name: "Ergonomic Chair", description: "Comfortable office chair", price: 199.5, stock: 10, category: "furniture" },
-    { name: "Running Shoes", description: "Lightweight athletic shoes", price: 89.99, stock: 40, category: "fashion" },
+    {
+      name: "Smart Headphones",
+      description: "Noise cancelling over-ear headphones",
+      price: 129.99,
+      stock: 25,
+      category: "electronics",
+      imageUrl: "https://images.unsplash.com/photo-1517263904808-5dc33c7b2404?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+      name: "Ergonomic Chair",
+      description: "Comfortable office chair",
+      price: 199.5,
+      stock: 10,
+      category: "furniture",
+      imageUrl: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+      name: "Running Shoes",
+      description: "Lightweight athletic shoes",
+      price: 89.99,
+      stock: 40,
+      category: "fashion",
+      imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80",
+    },
   ];
 
   for (const p of baseProducts) {
-    await Product.findOneAndUpdate({ name: p.name }, { $setOnInsert: p }, { upsert: true });
+    await Product.findOneAndUpdate(
+      { name: p.name },
+      { $setOnInsert: p },
+      { upsert: true }
+    );
+
+    if (p.imageUrl) {
+      await Product.updateOne(
+        { name: p.name, $or: [{ imageUrl: { $exists: false } }, { imageUrl: '' }] },
+        { $set: { imageUrl: p.imageUrl } }
+      );
+    }
   }
 
   // Additional realistic products to expand catalog. We'll upsert each by name.
@@ -83,7 +115,18 @@ async function seed() {
   ];
 
   for (const p of additional) {
-    await Product.findOneAndUpdate({ name: p.name }, { $setOnInsert: p }, { upsert: true });
+    await Product.findOneAndUpdate(
+      { name: p.name },
+      { $setOnInsert: p },
+      { upsert: true }
+    );
+
+    if (p.imageUrl) {
+      await Product.updateOne(
+        { name: p.name, $or: [{ imageUrl: { $exists: false } }, { imageUrl: '' }] },
+        { $set: { imageUrl: p.imageUrl } }
+      );
+    }
   }
 
   console.log("Seed data created successfully");
