@@ -1,13 +1,18 @@
-FROM node:18-alpine
+FROM node:18-bullseye-slim
 
 # set workdir
 WORKDIR /app
 
-# copy all files
-COPY . .
+# copy package manifests first for better caching
+COPY package.json package-lock.json ./
+COPY backend/package.json backend/package-lock.json backend/
+COPY frontend/package.json frontend/package-lock.json frontend/
 
 # install root deps (runs postinstall to install backend/frontend deps)
 RUN npm install --no-audit --no-fund
+
+# copy the rest of the app
+COPY . .
 
 # build frontend
 RUN cd frontend && npm run build
