@@ -8,6 +8,8 @@ const { env } = require("./config/env");
 const logger = require("./utils/logger");
 const { apiSuccess } = require("./utils/apiResponse");
 const { notFound, errorHandler } = require("./middleware");
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const { swaggerSpec, swaggerUi } = require("./swagger");
@@ -45,11 +47,19 @@ app.get("/health", (req, res) => {
   res.status(200).json(apiSuccess("Server is healthy", { status: "ok" }));
 });
 
-// Root status endpoint - returns a simple API status for production root URL
+// Root status endpoint - in production, if the frontend build exists, serve it.
 app.get("/", (req, res) => {
-  // Prefer the live process env first (covers hosting platforms),
-  // then fall back to the configured env value, then 'production'.
   const environment = process.env.NODE_ENV || env.NODE_ENV || "production";
+  // If production and frontend build exists, serve index.html to allow React to handle routing
+  if (environment === 'production') {
+    const clientDist = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+    const indexHtml = path.join(clientDist, 'index.html');
+    if (fs.existsSync(indexHtml)) {
+      return res.sendFile(indexHtml);
+    }
+  }
+
+  // Fallback: return API status JSON (useful for health checks and API-only deployments)
   res.status(200).json(
     apiSuccess("Cart Rescue API is running", {
       status: "ok",
@@ -69,6 +79,26 @@ app.use("/api/ai", require("./ai/routes/aiRoutes"));
 app.use("/api/ai", require("./ai/routes/predictionRoutes"));
 app.use("/api/ai", require("./ai/routes/recommendationRoutes"));
 app.use("/api/ai", require("./ai/routes/interventionRoutes"));
+
+// Serve frontend static files and SPA fallback (production only)
+try {
+  const clientDist = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+  if (fs.existsSync(clientDist)) {
+    // Serve static assets
+    app.use(express.static(clientDist));
+
+    // SPA fallback: only when the request is NOT for API, /health or /api-docs
+    app.get('*', (req, res, next) => {
+      const p = req.path || '';
+      if (p.startsWith('/api') || p === '/health' || p.startsWith('/api-docs')) return next();
+      return res.sendFile(path.join(clientDist, 'index.html'));
+    });
+  } else {
+    logger.warn(`Frontend dist not found at ${clientDist} — skipping static serving.`);
+  }
+} catch (err) {
+  logger.error(`Error while trying to serve frontend static files: ${err.message}`);
+}
 
 app.use(notFound);
 app.use(errorHandler);
