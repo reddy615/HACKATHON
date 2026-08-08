@@ -1,5 +1,6 @@
 import { Box, Button, Card, CardContent, Container, Grid, Stack, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const features = [
   'AI-powered abandonment risk detection',
@@ -8,7 +9,10 @@ const features = [
   'Multi-channel recovery messaging',
 ];
 
-const HomePage = () => (
+const HomePage = () => {
+  const { user, loading } = useAuth();
+
+  return (
   <Container maxWidth="lg" sx={{ py: 8 }}>
     <Grid container spacing={4} alignItems="center">
       <Grid item xs={12} md={7}>
@@ -23,9 +27,11 @@ const HomePage = () => (
             <Button component={Link} to="/products" variant="contained" size="large">
               Shop Now
             </Button>
-            <Button component={Link} to="/login" variant="outlined" size="large">
-              Login
-            </Button>
+            {!user && !loading && (
+              <Button component={Link} to="/login" variant="outlined" size="large">
+                Login
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Grid>
@@ -55,6 +61,7 @@ const HomePage = () => (
       </Grid>
     </Box>
   </Container>
-);
+  );
+};
 
 export default HomePage;
