@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Favorite, FavoriteBorder, Search } from '@mui/icons-material';
 import {
+  Box,
   Button,
   Card,
   CardContent,
